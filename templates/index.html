@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微信文章格式化与海报生成系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .section-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+        .textarea-container {
+            position: relative;
+        }
+        .char-count {
+            position: absolute;
+            bottom: 10px;
+            right: 15px;
+            color: #6c757d;
+            font-size: 12px;
+        }
+        .preview-area {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 20px;
+            min-height: 200px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+        }
+        .poster-preview {
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            min-height: 300px;
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+        }
+        .loading {
+            display: none;
+        }
+        .loading.show {
+            display: inline-block;
+        }
+        .btn-group-custom {
+            gap: 10px;
+        }
+        .status-indicator {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-magic me-2"></i>
+                微信文章格式化与海报生成系统
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/config">
+                    <i class="fas fa-cog me-1"></i>
+                    配置
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <!-- 系统状态 -->
+        <div class="section-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    系统状态
+                </h5>
+                <div id="systemStatus" class="status-indicator status-warning">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    未配置AI服务
+                </div>
+            </div>
+        </div>
+
+        <!-- 文章输入与格式化 -->
+        <div class="section-card">
+            <h5 class="mb-3">
+                <i class="fas fa-edit me-2"></i>
+                文章内容输入
+            </h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="textarea-container">
+                        <textarea 
+                            id="articleContent" 
+                            class="form-control" 
+                            rows="12" 
+                            placeholder="请粘贴或输入文章内容..."
+                        ></textarea>
+                        <div class="char-count" id="charCount">0 字符</div>
+                    </div>
+                    <div class="mt-3 d-flex btn-group-custom">
+                        <button id="formatBtn" class="btn btn-primary">
+                            <i class="fas fa-magic me-1"></i>
+                            <span class="loading spinner-border spinner-border-sm me-1"></span>
+                            格式化为Markdown
+                        </button>
+                        <button id="clearBtn" class="btn btn-outline-secondary">
+                            <i class="fas fa-trash me-1"></i>
+                            清空
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">格式化预览</label>
+                    <div id="formattedPreview" class="preview-area">
+                        格式化后的内容将在这里显示...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 海报生成 -->
+        <div class="section-card">
+            <h5 class="mb-3">
+                <i class="fas fa-image me-2"></i>
+                AI海报生成
+            </h5>
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">海报标题</label>
+                    <input type="text" id="posterTitle" class="form-control" placeholder="请输入海报标题...">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">海报类型</label>
+                    <select id="posterType" class="form-select">
+                        <option value="小红书">小红书 (3:4)</option>
+                        <option value="公众号">公众号 (3.35:1)</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">操作</label>
+                    <div>
+                        <button id="generatePosterBtn" class="btn btn-success w-100">
+                            <i class="fas fa-wand-magic-sparkles me-1"></i>
+                            <span class="loading spinner-border spinner-border-sm me-1"></span>
+                            生成海报
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <label class="form-label">海报预览</label>
+                    <div id="posterPreview" class="poster-preview">
+                        <div class="text-center">
+                            <i class="fas fa-image fa-3x mb-3"></i>
+                            <p>海报预览将在这里显示</p>
+                            <small class="text-muted">请先输入标题并点击生成海报</small>
+                        </div>
+                    </div>
+                    <div id="posterActions" class="mt-3" style="display: none;">
+                        <button id="downloadPosterBtn" class="btn btn-primary">
+                            <i class="fas fa-download me-1"></i>
+                            下载海报
+                        </button>
+                        <button id="viewPosterBtn" class="btn btn-outline-primary ms-2">
+                            <i class="fas fa-external-link-alt me-1"></i>
+                            新窗口查看
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 使用说明 -->
+        <div class="section-card">
+            <h5 class="mb-3">
+                <i class="fas fa-question-circle me-2"></i>
+                使用说明
+            </h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>文章格式化</h6>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-check text-success me-2"></i>支持富文本粘贴</li>
+                        <li><i class="fas fa-check text-success me-2"></i>自动识别标题层级</li>
+                        <li><i class="fas fa-check text-success me-2"></i>智能段落分割</li>
+                        <li><i class="fas fa-check text-success me-2"></i>生成标准Markdown格式</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6>AI海报生成</h6>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-check text-success me-2"></i>智能风格匹配</li>
+                        <li><i class="fas fa-check text-success me-2"></i>支持小红书和公众号格式</li>
+                        <li><i class="fas fa-check text-success me-2"></i>一键下载HTML文件</li>
+                        <li><i class="fas fa-check text-success me-2"></i>可在浏览器中直接使用</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 通知 -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="toast" class="toast" role="alert">
+            <div class="toast-header">
+                <i id="toastIcon" class="fas fa-info-circle me-2"></i>
+                <strong class="me-auto" id="toastTitle">通知</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="toastBody">
+                消息内容
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 全局变量
+        let currentPosterData = null;
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
+
+        function initializeApp() {
+            // 绑定事件
+            bindEvents();
+            // 检查系统状态
+            checkSystemStatus();
+        }
+
+        function bindEvents() {
+            // 文章内容字符计数
+            document.getElementById('articleContent').addEventListener('input', updateCharCount);
+            
+            // 格式化按钮
+            document.getElementById('formatBtn').addEventListener('click', formatArticle);
+            
+            // 清空按钮
+            document.getElementById('clearBtn').addEventListener('click', clearContent);
+            
+            // 生成海报按钮
+            document.getElementById('generatePosterBtn').addEventListener('click', generatePoster);
+            
+            // 下载海报按钮
+            document.getElementById('downloadPosterBtn').addEventListener('click', downloadPoster);
+            
+            // 查看海报按钮
+            document.getElementById('viewPosterBtn').addEventListener('click', viewPoster);
+        }
+
+        function updateCharCount() {
+            const content = document.getElementById('articleContent').value;
+            document.getElementById('charCount').textContent = `${content.length} 字符`;
+        }
+
+        function clearContent() {
+            document.getElementById('articleContent').value = '';
+            document.getElementById('formattedPreview').textContent = '格式化后的内容将在这里显示...';
+            updateCharCount();
+        }
+
+        async function formatArticle() {
+            const content = document.getElementById('articleContent').value.trim();
+            
+            if (!content) {
+                showToast('请先输入文章内容', 'warning');
+                return;
+            }
+
+            const btn = document.getElementById('formatBtn');
+            const loading = btn.querySelector('.loading');
+            
+            try {
+                btn.disabled = true;
+                loading.classList.add('show');
+
+                const response = await fetch('/api/format-article', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ content })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    document.getElementById('formattedPreview').textContent = result.formatted_content;
+                    showToast('文章格式化成功', 'success');
+                } else {
+                    showToast(result.error || '格式化失败', 'error');
+                }
+            } catch (error) {
+                showToast('网络错误，请重试', 'error');
+                console.error('格式化错误:', error);
+            } finally {
+                btn.disabled = false;
+                loading.classList.remove('show');
+            }
+        }
+
+        async function generatePoster() {
+            const title = document.getElementById('posterTitle').value.trim();
+            const content = document.getElementById('articleContent').value.trim();
+            const posterType = document.getElementById('posterType').value;
+            
+            if (!title) {
+                showToast('请输入海报标题', 'warning');
+                return;
+            }
+            
+            if (!content) {
+                showToast('请输入文章内容', 'warning');
+                return;
+            }
+
+            const btn = document.getElementById('generatePosterBtn');
+            const loading = btn.querySelector('.loading');
+            
+            try {
+                btn.disabled = true;
+                loading.classList.add('show');
+                
+                document.getElementById('posterPreview').innerHTML = `
+                    <div class="text-center">
+                        <div class="spinner-border text-primary mb-3" role="status"></div>
+                        <p>AI正在生成海报，请稍候...</p>
+                    </div>
+                `;
+
+                const response = await fetch('/api/generate-poster', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ title, content, poster_type: posterType })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    currentPosterData = result;
+                    
+                    // 显示海报预览
+                    document.getElementById('posterPreview').innerHTML = `
+                        <iframe src="${result.poster_url}" 
+                                style="width: 100%; height: 400px; border: none; border-radius: 5px;">
+                        </iframe>
+                    `;
+                    
+                    // 显示操作按钮
+                    document.getElementById('posterActions').style.display = 'block';
+                    
+                    showToast('海报生成成功', 'success');
+                } else {
+                    document.getElementById('posterPreview').innerHTML = `
+                        <div class="text-center text-danger">
+                            <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+                            <p>海报生成失败</p>
+                            <small>${result.error}</small>
+                        </div>
+                    `;
+                    showToast(result.error || '海报生成失败', 'error');
+                }
+            } catch (error) {
+                document.getElementById('posterPreview').innerHTML = `
+                    <div class="text-center text-danger">
+                        <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+                        <p>网络错误</p>
+                        <small>请检查网络连接并重试</small>
+                    </div>
+                `;
+                showToast('网络错误，请重试', 'error');
+                console.error('生成海报错误:', error);
+            } finally {
+                btn.disabled = false;
+                loading.classList.remove('show');
+            }
+        }
+
+        function downloadPoster() {
+            if (!currentPosterData) {
+                showToast('没有可下载的海报', 'warning');
+                return;
+            }
+            
+            window.open(currentPosterData.download_url, '_blank');
+        }
+
+        function viewPoster() {
+            if (!currentPosterData) {
+                showToast('没有可查看的海报', 'warning');
+                return;
+            }
+            
+            window.open(currentPosterData.poster_url, '_blank');
+        }
+
+        async function checkSystemStatus() {
+            try {
+                const response = await fetch('/api/config');
+                const config = await response.json();
+                
+                const statusElement = document.getElementById('systemStatus');
+                
+                if (config.ai_api_key && config.ai_api_key !== '') {
+                    statusElement.className = 'status-indicator status-success';
+                    statusElement.innerHTML = '<i class="fas fa-check-circle me-1"></i>AI服务已配置';
+                } else {
+                    statusElement.className = 'status-indicator status-warning';
+                    statusElement.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>未配置AI服务';
+                }
+            } catch (error) {
+                console.error('检查系统状态失败:', error);
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastIcon = document.getElementById('toastIcon');
+            const toastTitle = document.getElementById('toastTitle');
+            const toastBody = document.getElementById('toastBody');
+            
+            // 设置图标和标题
+            switch (type) {
+                case 'success':
+                    toastIcon.className = 'fas fa-check-circle me-2 text-success';
+                    toastTitle.textContent = '成功';
+                    break;
+                case 'error':
+                    toastIcon.className = 'fas fa-exclamation-circle me-2 text-danger';
+                    toastTitle.textContent = '错误';
+                    break;
+                case 'warning':
+                    toastIcon.className = 'fas fa-exclamation-triangle me-2 text-warning';
+                    toastTitle.textContent = '警告';
+                    break;
+                default:
+                    toastIcon.className = 'fas fa-info-circle me-2 text-info';
+                    toastTitle.textContent = '提示';
+            }
+            
+            toastBody.textContent = message;
+            
+            const bsToast = new bootstrap.Toast(toast);
+            bsToast.show();
+        }
+    </script>
+</body>
+</html>

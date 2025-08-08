@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统配置 - 微信文章格式化与海报生成系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .main-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .section-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+        .config-item {
+            border-bottom: 1px solid #eee;
+            padding: 15px 0;
+        }
+        .config-item:last-child {
+            border-bottom: none;
+        }
+        .status-indicator {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .loading {
+            display: none;
+        }
+        .loading.show {
+            display: inline-block;
+        }
+        .help-text {
+            font-size: 0.875rem;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+        .api-key-input {
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-magic me-2"></i>
+                微信文章格式化与海报生成系统
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/">
+                    <i class="fas fa-home me-1"></i>
+                    首页
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <!-- 页面标题 -->
+        <div class="section-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h4 class="mb-1">
+                        <i class="fas fa-cog me-2"></i>
+                        系统配置
+                    </h4>
+                    <p class="text-muted mb-0">配置AI服务和系统参数</p>
+                </div>
+                <div id="connectionStatus" class="status-indicator status-warning">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    未测试连接
+                </div>
+            </div>
+        </div>
+
+        <!-- AI服务配置 -->
+        <div class="section-card">
+            <h5 class="mb-3">
+                <i class="fas fa-robot me-2"></i>
+                AI服务配置
+            </h5>
+            
+            <form id="configForm">
+                <div class="config-item">
+                    <label for="aiServiceUrl" class="form-label">
+                        <i class="fas fa-link me-1"></i>
+                        API服务地址
+                    </label>
+                    <input type="url" class="form-control" id="aiServiceUrl" 
+                           placeholder="https://api.openai.com/v1/chat/completions">
+                    <div class="help-text">
+                        支持OpenAI API、Claude API或其他兼容的API服务
+                    </div>
+                </div>
+
+                <div class="config-item">
+                    <label for="aiApiKey" class="form-label">
+                        <i class="fas fa-key me-1"></i>
+                        API密钥
+                    </label>
+                    <div class="input-group">
+                        <input type="password" class="form-control api-key-input" id="aiApiKey" 
+                               placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+                        <button class="btn btn-outline-secondary" type="button" id="toggleApiKey">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    <div class="help-text">
+                        请确保API密钥有足够的额度和权限
+                    </div>
+                </div>
+
+                <div class="config-item">
+                    <label for="aiModel" class="form-label">
+                        <i class="fas fa-brain me-1"></i>
+                        AI模型
+                    </label>
+                    <select class="form-select" id="aiModel">
+                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                        <option value="gpt-4">GPT-4</option>
+                        <option value="gpt-4-turbo-preview">GPT-4 Turbo</option>
+                        <option value="claude-3-sonnet-20240229">Claude 3 Sonnet</option>
+                        <option value="claude-3-opus-20240229">Claude 3 Opus</option>
+                    </select>
+                    <div class="help-text">
+                        选择适合的AI模型，不同模型的效果和费用不同
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>
+                        <span class="loading spinner-border spinner-border-sm me-1"></span>
+                        保存配置
+                    </button>
+                    <button type="button" id="testConnectionBtn" class="btn btn-success">
+                        <i class="fas fa-plug me-1"></i>
+                        <span class="loading spinner-border spinner-border-sm me-1"></span>
+                        测试连接
+                    </button>
+                    <button type="button" id="resetConfigBtn" class="btn btn-outline-danger">
+                        <i class="fas fa-undo me-1"></i>
+                        重置
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- 系统信息 -->
+        <div class="section-card">
+            <h5 class="mb-3">
+                <i class="fas fa-info-circle me-2"></i>
+                系统信息
+            </h5>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="config-item">
+                        <strong>版本信息</strong>
+                        <div class="help-text">v1.0.0 - 简化版（无数据库）</div>
+                    </div>
+                    <div class="config-item">
+                        <strong>支持的海报类型</strong>
+                        <div class="help-text">
+                            <span class="badge bg-primary me-1">小红书 (3:4)</span>
+                            <span class="badge bg-success">公众号 (3.35:1)</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="config-item">
+                        <strong>功能特性</strong>
+                        <div class="help-text">
+                            <div><i class="fas fa-check text-success me-1"></i>文章格式化</div>
+                            <div><i class="fas fa-check text-success me-1"></i>AI海报生成</div>
+                            <div><i class="fas fa-check text-success me-1"></i>智能风格匹配</div>
+                            <div><i class="fas fa-check text-success me-1"></i>一键下载</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 使用说明 -->
+        <div class="section-card">
+            <h5 class="mb-3">
+                <i class="fas fa-question-circle me-2"></i>
+                配置说明
+            </h5>
+            
+            <div class="accordion" id="helpAccordion">
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingOne">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                data-bs-target="#collapseOne">
+                            <i class="fas fa-question me-2"></i>
+                            如何获取OpenAI API密钥？
+                        </button>
+                    </h2>
+                    <div id="collapseOne" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                        <div class="accordion-body">
+                            <ol>
+                                <li>访问 <a href="https://platform.openai.com" target="_blank">OpenAI Platform</a></li>
+                                <li>注册或登录账户</li>
+                                <li>进入 API Keys 页面</li>
+                                <li>点击 "Create new secret key" 创建新密钥</li>
+                                <li>复制密钥并粘贴到上方配置中</li>
+                            </ol>
+                            <div class="alert alert-warning mt-2">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                请妥善保管API密钥，不要泄露给他人
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingTwo">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                data-bs-target="#collapseTwo">
+                            <i class="fas fa-question me-2"></i>
+                            支持哪些AI服务？
+                        </button>
+                    </h2>
+                    <div id="collapseTwo" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                        <div class="accordion-body">
+                            <ul>
+                                <li><strong>OpenAI API</strong> - GPT-3.5, GPT-4 系列</li>
+                                <li><strong>Claude API</strong> - Claude 3 系列</li>
+                                <li><strong>自定义API</strong> - 兼容OpenAI格式的其他服务</li>
+                            </ul>
+                            <div class="alert alert-info mt-2">
+                                <i class="fas fa-info-circle me-1"></i>
+                                推荐使用GPT-4或Claude 3 Sonnet以获得最佳效果
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingThree">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                data-bs-target="#collapseThree">
+                            <i class="fas fa-question me-2"></i>
+                            常见问题解决
+                        </button>
+                    </h2>
+                    <div id="collapseThree" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                        <div class="accordion-body">
+                            <div class="mb-3">
+                                <strong>连接失败</strong>
+                                <ul>
+                                    <li>检查API密钥是否正确</li>
+                                    <li>确认API服务地址格式正确</li>
+                                    <li>检查网络连接</li>
+                                    <li>确认API额度是否充足</li>
+                                </ul>
+                            </div>
+                            <div class="mb-3">
+                                <strong>海报生成失败</strong>
+                                <ul>
+                                    <li>检查标题内容是否过长</li>
+                                    <li>尝试更换AI模型</li>
+                                    <li>检查API服务状态</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 通知 -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="toast" class="toast" role="alert">
+            <div class="toast-header">
+                <i id="toastIcon" class="fas fa-info-circle me-2"></i>
+                <strong class="me-auto" id="toastTitle">通知</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="toastBody">
+                消息内容
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeConfigPage();
+        });
+
+        function initializeConfigPage() {
+            // 绑定事件
+            bindEvents();
+            // 加载当前配置
+            loadCurrentConfig();
+        }
+
+        function bindEvents() {
+            // 配置表单提交
+            document.getElementById('configForm').addEventListener('submit', saveConfig);
+            
+            // 测试连接按钮
+            document.getElementById('testConnectionBtn').addEventListener('click', testConnection);
+            
+            // 重置配置按钮
+            document.getElementById('resetConfigBtn').addEventListener('click', resetConfig);
+            
+            // 切换API密钥显示
+            document.getElementById('toggleApiKey').addEventListener('click', toggleApiKeyVisibility);
+        }
+
+        async function loadCurrentConfig() {
+            try {
+                const response = await fetch('/api/config');
+                const config = await response.json();
+                
+                // 填充表单
+                document.getElementById('aiServiceUrl').value = config.ai_service_url || '';
+                document.getElementById('aiModel').value = config.ai_model || 'gpt-3.5-turbo';
+                
+                // API密钥特殊处理（显示为星号）
+                if (config.ai_api_key && config.ai_api_key !== '') {
+                    document.getElementById('aiApiKey').placeholder = '已配置 (点击眼睛图标查看)';
+                }
+                
+                updateConnectionStatus(config.ai_api_key && config.ai_api_key !== '');
+            } catch (error) {
+                console.error('加载配置失败:', error);
+                showToast('加载配置失败', 'error');
+            }
+        }
+
+        async function saveConfig(event) {
+            event.preventDefault();
+            
+            const form = event.target;
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const loading = submitBtn.querySelector('.loading');
+            
+            try {
+                submitBtn.disabled = true;
+                loading.classList.add('show');
+                
+                const formData = {
+                    ai_service_url: document.getElementById('aiServiceUrl').value.trim(),
+                    ai_api_key: document.getElementById('aiApiKey').value.trim(),
+                    ai_model: document.getElementById('aiModel').value
+                };
+                
+                // 验证必填字段
+                if (!formData.ai_service_url) {
+                    showToast('请输入API服务地址', 'warning');
+                    return;
+                }
+                
+                if (!formData.ai_api_key) {
+                    showToast('请输入API密钥', 'warning');
+                    return;
+                }
+                
+                const response = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('配置保存成功', 'success');
+                    updateConnectionStatus(true);
+                    
+                    // 更新API密钥显示
+                    document.getElementById('aiApiKey').value = '';
+                    document.getElementById('aiApiKey').placeholder = '已配置 (点击眼睛图标查看)';
+                } else {
+                    showToast(result.error || '保存失败', 'error');
+                }
+            } catch (error) {
+                showToast('网络错误，请重试', 'error');
+                console.error('保存配置错误:', error);
+            } finally {
+                submitBtn.disabled = false;
+                loading.classList.remove('show');
+            }
+        }
+
+        async function testConnection() {
+            const btn = document.getElementById('testConnectionBtn');
+            const loading = btn.querySelector('.loading');
+            
+            try {
+                btn.disabled = true;
+                loading.classList.add('show');
+                
+                const response = await fetch('/api/test-ai', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('AI服务连接正常', 'success');
+                    updateConnectionStatus(true, 'connected');
+                } else {
+                    showToast(result.error || '连接失败', 'error');
+                    updateConnectionStatus(false, 'error');
+                }
+            } catch (error) {
+                showToast('网络错误，无法测试连接', 'error');
+                updateConnectionStatus(false, 'error');
+                console.error('测试连接错误:', error);
+            } finally {
+                btn.disabled = false;
+                loading.classList.remove('show');
+            }
+        }
+
+        function resetConfig() {
+            if (confirm('确定要重置所有配置吗？此操作不可撤销。')) {
+                document.getElementById('aiServiceUrl').value = 'https://api.openai.com/v1/chat/completions';
+                document.getElementById('aiApiKey').value = '';
+                document.getElementById('aiApiKey').placeholder = 'sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
+                document.getElementById('aiModel').value = 'gpt-3.5-turbo';
+                
+                updateConnectionStatus(false);
+                showToast('配置已重置', 'info');
+            }
+        }
+
+        function toggleApiKeyVisibility() {
+            const input = document.getElementById('aiApiKey');
+            const icon = document.getElementById('toggleApiKey').querySelector('i');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fas fa-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'fas fa-eye';
+            }
+        }
+
+        function updateConnectionStatus(isConfigured, status = null) {
+            const statusElement = document.getElementById('connectionStatus');
+            
+            if (status === 'connected') {
+                statusElement.className = 'status-indicator status-success';
+                statusElement.innerHTML = '<i class="fas fa-check-circle me-1"></i>连接正常';
+            } else if (status === 'error') {
+                statusElement.className = 'status-indicator status-error';
+                statusElement.innerHTML = '<i class="fas fa-times-circle me-1"></i>连接失败';
+            } else if (isConfigured) {
+                statusElement.className = 'status-indicator status-warning';
+                statusElement.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>已配置未测试';
+            } else {
+                statusElement.className = 'status-indicator status-warning';
+                statusElement.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>未配置AI服务';
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastIcon = document.getElementById('toastIcon');
+            const toastTitle = document.getElementById('toastTitle');
+            const toastBody = document.getElementById('toastBody');
+            
+            // 设置图标和标题
+            switch (type) {
+                case 'success':
+                    toastIcon.className = 'fas fa-check-circle me-2 text-success';
+                    toastTitle.textContent = '成功';
+                    break;
+                case 'error':
+                    toastIcon.className = 'fas fa-exclamation-circle me-2 text-danger';
+                    toastTitle.textContent = '错误';
+                    break;
+                case 'warning':
+                    toastIcon.className = 'fas fa-exclamation-triangle me-2 text-warning';
+                    toastTitle.textContent = '警告';
+                    break;
+                default:
+                    toastIcon.className = 'fas fa-info-circle me-2 text-info';
+                    toastTitle.textContent = '提示';
+            }
+            
+            toastBody.textContent = message;
+            
+            const bsToast = new bootstrap.Toast(toast);
+            bsToast.show();
+        }
+    </script>
+</body>
+</html>
