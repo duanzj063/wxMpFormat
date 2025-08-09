@@ -136,15 +136,10 @@
                         <i class="fas fa-brain me-1"></i>
                         AI模型
                     </label>
-                    <select class="form-select" id="aiModel">
-                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                        <option value="gpt-4">GPT-4</option>
-                        <option value="gpt-4-turbo-preview">GPT-4 Turbo</option>
-                        <option value="claude-3-sonnet-20240229">Claude 3 Sonnet</option>
-                        <option value="claude-3-opus-20240229">Claude 3 Opus</option>
-                    </select>
+                    <input type="text" class="form-control" id="aiModel" 
+                           placeholder="请输入AI模型名称，如：gpt-3.5-turbo">
                     <div class="help-text">
-                        选择适合的AI模型，不同模型的效果和费用不同
+                        请输入您要使用的AI模型名称，不同模型的效果和费用不同
                     </div>
                 </div>
 
@@ -336,22 +331,33 @@
 
         async function loadCurrentConfig() {
             try {
-                const response = await fetch('/api/config');
-                const config = await response.json();
+                // 先获取默认配置
+                const defaultsResponse = await fetch('/api/config/defaults');
+                const defaults = await defaultsResponse.json();
                 
-                // 填充表单
-                document.getElementById('aiServiceUrl').value = config.ai_service_url || '';
-                document.getElementById('aiModel').value = config.ai_model || 'gpt-3.5-turbo';
+                // 再获取当前配置
+                const configResponse = await fetch('/api/config');
+                const config = await configResponse.json();
+                
+                // 填充表单 - 优先使用当前配置，如果为空则使用默认配置
+                document.getElementById('aiServiceUrl').value = config.ai_service_url || defaults.ai_service_url || '';
+                document.getElementById('aiModel').value = config.ai_model || defaults.ai_model || 'gpt-3.5-turbo';
                 
                 // API密钥特殊处理（显示为星号）
-                if (config.ai_api_key && config.ai_api_key !== '') {
+                const hasApiKey = (config.ai_api_key && config.ai_api_key !== '' && config.ai_api_key !== '*'.repeat(20)) || defaults.has_api_key;
+                if (hasApiKey) {
                     document.getElementById('aiApiKey').placeholder = '已配置 (点击眼睛图标查看)';
+                } else {
+                    document.getElementById('aiApiKey').placeholder = '请输入API密钥';
                 }
                 
-                updateConnectionStatus(config.ai_api_key && config.ai_api_key !== '');
+                updateConnectionStatus(hasApiKey);
             } catch (error) {
                 console.error('加载配置失败:', error);
                 showToast('加载配置失败', 'error');
+                // 如果加载失败，使用基本默认值
+                document.getElementById('aiServiceUrl').value = 'https://api.openai.com/v1/chat/completions';
+                document.getElementById('aiModel').value = 'gpt-3.5-turbo';
             }
         }
 
@@ -369,7 +375,7 @@
                 const formData = {
                     ai_service_url: document.getElementById('aiServiceUrl').value.trim(),
                     ai_api_key: document.getElementById('aiApiKey').value.trim(),
-                    ai_model: document.getElementById('aiModel').value
+                    ai_model: document.getElementById('aiModel').value.trim()
                 };
                 
                 // 验证必填字段
@@ -378,9 +384,26 @@
                     return;
                 }
                 
-                if (!formData.ai_api_key) {
-                    showToast('请输入API密钥', 'warning');
+                if (!formData.ai_model) {
+                    showToast('请输入AI模型名称', 'warning');
                     return;
+                }
+                
+                // 如果API密钥为空，检查是否有默认密钥
+                if (!formData.ai_api_key) {
+                    try {
+                        const defaultsResponse = await fetch('/api/config/defaults');
+                        const defaults = await defaultsResponse.json();
+                        if (!defaults.has_api_key) {
+                            showToast('请输入API密钥', 'warning');
+                            return;
+                        }
+                        // 如果有默认密钥，则不发送api_key字段，让后端使用默认值
+                        delete formData.ai_api_key;
+                    } catch (error) {
+                        showToast('请输入API密钥', 'warning');
+                        return;
+                    }
                 }
                 
                 const response = await fetch('/api/config', {
@@ -443,15 +466,37 @@
             }
         }
 
-        function resetConfig() {
-            if (confirm('确定要重置所有配置吗？此操作不可撤销。')) {
-                document.getElementById('aiServiceUrl').value = 'https://api.openai.com/v1/chat/completions';
-                document.getElementById('aiApiKey').value = '';
-                document.getElementById('aiApiKey').placeholder = 'sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
-                document.getElementById('aiModel').value = 'gpt-3.5-turbo';
-                
-                updateConnectionStatus(false);
-                showToast('配置已重置', 'info');
+        async function resetConfig() {
+            if (confirm('确定要重置为默认配置吗？此操作不可撤销。')) {
+                try {
+                    // 获取默认配置
+                    const defaultsResponse = await fetch('/api/config/defaults');
+                    const defaults = await defaultsResponse.json();
+                    
+                    // 重置为默认配置
+                    document.getElementById('aiServiceUrl').value = defaults.ai_service_url || 'https://api.openai.com/v1/chat/completions';
+                    document.getElementById('aiApiKey').value = '';
+                    document.getElementById('aiModel').value = defaults.ai_model || 'gpt-3.5-turbo';
+                    
+                    // 更新placeholder
+                    if (defaults.has_api_key) {
+                        document.getElementById('aiApiKey').placeholder = '已配置默认密钥 (可重新输入覆盖)';
+                    } else {
+                        document.getElementById('aiApiKey').placeholder = '请输入API密钥';
+                    }
+                    
+                    updateConnectionStatus(defaults.has_api_key);
+                    showToast('配置已重置为默认值', 'info');
+                } catch (error) {
+                    console.error('重置配置失败:', error);
+                    // 如果获取默认配置失败，使用基本默认值
+                    document.getElementById('aiServiceUrl').value = 'https://api.openai.com/v1/chat/completions';
+                    document.getElementById('aiApiKey').value = '';
+                    document.getElementById('aiApiKey').placeholder = '请输入API密钥';
+                    document.getElementById('aiModel').value = 'gpt-3.5-turbo';
+                    updateConnectionStatus(false);
+                    showToast('配置已重置', 'info');
+                }
             }
         }
 

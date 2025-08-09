@@ -22,12 +22,39 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs('static/posters', exist_ok=True)
 
-# 从环境变量读取配置
+# 全局配置
 config = {
     'ai_service_url': os.getenv('API_BASE_URL', 'https://api.openai.com/v1/chat/completions'),
     'ai_api_key': os.getenv('API_KEY', ''),
     'ai_model': os.getenv('MODEL_NAME', 'gpt-3.5-turbo')
 }
+
+def normalize_openai_url(url):
+    """标准化OpenAI API URL格式"""
+    if not url:
+        return 'https://api.openai.com/v1/chat/completions'
+    
+    # 移除末尾的斜杠
+    url = url.rstrip('/')
+    
+    # 如果URL已经包含完整路径，直接返回
+    if url.endswith('/chat/completions'):
+        return url
+    
+    # 如果URL只包含到v1，添加chat/completions
+    if url.endswith('/v1'):
+        return f"{url}/chat/completions"
+    
+    # 如果URL是基础地址，添加完整路径
+    if not '/v1' in url:
+        return f"{url}/v1/chat/completions"
+    
+    # 其他情况，尝试智能拼接
+    if '/v1/' in url and not url.endswith('/chat/completions'):
+        base_url = url.split('/v1/')[0]
+        return f"{base_url}/v1/chat/completions"
+    
+    return url
 
 @app.route('/')
 def index():
@@ -45,16 +72,23 @@ def format_article():
     try:
         data = request.get_json()
         content = data.get('content', '')
+        use_ai = data.get('use_ai', False)  # 是否使用AI排版
         
         if not content:
             return jsonify({'error': '内容不能为空'}), 400
         
-        # 文章格式化逻辑
-        formatted_content = format_text_to_markdown(content)
+        # 根据选择使用不同的格式化方式
+        if use_ai:
+            formatted_content = format_text_with_ai(content)
+            if not formatted_content:
+                return jsonify({'error': 'AI服务调用失败，请检查配置'}), 500
+        else:
+            formatted_content = format_text_to_markdown(content)
         
         return jsonify({
             'success': True,
-            'formatted_content': formatted_content
+            'formatted_content': formatted_content,
+            'method': 'AI排版' if use_ai else '规则排版'
         })
     
     except Exception as e:
@@ -132,6 +166,9 @@ def api_config():
                 config['ai_service_url'] = data['ai_service_url']
             if 'ai_api_key' in data:
                 config['ai_api_key'] = data['ai_api_key']
+            elif 'ai_api_key' not in data and os.getenv('API_KEY', '').strip():
+                # 如果前端没有发送api_key字段，且环境变量中有默认密钥，则使用默认密钥
+                config['ai_api_key'] = os.getenv('API_KEY', '')
             if 'ai_model' in data:
                 config['ai_model'] = data['ai_model']
             
@@ -139,6 +176,20 @@ def api_config():
         
         except Exception as e:
             return jsonify({'error': str(e)}), 500
+
+@app.route('/api/config/defaults', methods=['GET'])
+def api_config_defaults():
+    """获取默认配置信息（用于表单初始化）"""
+    try:
+        # 从环境变量获取默认配置，但不显示真实的API密钥
+        defaults = {
+            'ai_service_url': os.getenv('API_BASE_URL', 'https://api.openai.com/v1/chat/completions'),
+            'ai_model': os.getenv('MODEL_NAME', 'gpt-3.5-turbo'),
+            'has_api_key': bool(os.getenv('API_KEY', '').strip())  # 只返回是否有密钥，不返回具体值
+        }
+        return jsonify(defaults)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/test-ai', methods=['POST'])
 def test_ai():
@@ -159,7 +210,10 @@ def test_ai():
             'max_tokens': 50
         }
         
-        response = requests.post(config['ai_service_url'], headers=headers, json=test_data, timeout=10)
+        # 标准化API URL
+        api_url = normalize_openai_url(config['ai_service_url'])
+        
+        response = requests.post(api_url, headers=headers, json=test_data, timeout=10)
         
         if response.status_code == 200:
             return jsonify({'success': True, 'message': 'AI服务连接正常'})
@@ -201,6 +255,82 @@ def format_text_to_markdown(text):
     
     return '\n'.join(formatted_lines)
 
+def format_text_with_ai(text):
+    """使用AI格式化文章为Markdown"""
+    try:
+        print(f"开始AI格式化，文本长度: {len(text)}")
+        print(f"AI配置 - URL: {config['ai_service_url']}, Model: {config['ai_model']}, API Key存在: {bool(config['ai_api_key'])}")
+        
+        # 检查AI配置
+        if not config['ai_api_key']:
+            print("错误: AI API密钥未配置")
+            return None
+            
+        # 构建AI提示词
+        prompt = f"""请将以下文章内容格式化为适合微信公众号发布的Markdown格式。要求：
+
+1. 识别并标记标题层级（使用 # ## ### 等）
+2. 保持段落结构清晰
+3. 适当添加强调和重点标记
+4. 保持原文内容不变，只调整格式
+5. 确保排版美观易读
+
+原文内容：
+{text}
+
+请直接返回格式化后的Markdown内容，不要添加任何解释或说明。"""
+        
+        # 调用AI服务
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {config["ai_api_key"]}'
+        }
+        
+        payload = {
+            'model': config['ai_model'],
+            'messages': [
+                {
+                    'role': 'user',
+                    'content': prompt
+                }
+            ],
+            'temperature': 0.3,
+            'max_tokens': 2000
+        }
+        
+        # 标准化API URL
+        api_url = normalize_openai_url(config['ai_service_url'])
+        print(f"发送请求到: {api_url}")
+        
+        response = requests.post(
+            api_url,
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+        
+        print(f"API响应状态码: {response.status_code}")
+        
+        if response.status_code == 200:
+            result = response.json()
+            print(f"API响应内容: {result}")
+            if 'choices' in result and len(result['choices']) > 0:
+                formatted_content = result['choices'][0]['message']['content'].strip()
+                print(f"格式化成功，内容长度: {len(formatted_content)}")
+                return formatted_content
+            else:
+                print("错误: API响应中没有choices字段或choices为空")
+        else:
+            print(f"API请求失败: {response.status_code}, {response.text}")
+        
+        return None
+        
+    except Exception as e:
+        print(f"AI格式化错误: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
 def generate_poster_html(title, content, poster_type):
     """调用AI生成海报HTML"""
     try:
@@ -235,7 +365,10 @@ def generate_poster_html(title, content, poster_type):
             'temperature': 0.7
         }
         
-        response = requests.post(config['ai_service_url'], headers=headers, json=data, timeout=30)
+        # 标准化API URL
+        api_url = normalize_openai_url(config['ai_service_url'])
+        
+        response = requests.post(api_url, headers=headers, json=data, timeout=30)
         
         if response.status_code == 200:
             result = response.json()

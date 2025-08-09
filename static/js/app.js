@@ -31,7 +31,7 @@ function initializeApp() {
 // 绑定事件监听器
 function bindEventListeners() {
     // 文章输入区域字符计数
-    const articleInput = document.getElementById('articleInput');
+    const articleInput = document.getElementById('articleContent');
     if (articleInput) {
         articleInput.addEventListener('input', updateCharCount);
         articleInput.addEventListener('paste', function() {
@@ -108,7 +108,7 @@ function bindConfigEvents() {
 
 // 更新字符计数
 function updateCharCount() {
-    const articleInput = document.getElementById('articleInput');
+    const articleInput = document.getElementById('articleContent');
     const charCount = document.getElementById('charCount');
     
     if (articleInput && charCount) {
@@ -128,10 +128,11 @@ function updateCharCount() {
 
 // 格式化文章
 async function formatArticle() {
-    const articleInput = document.getElementById('articleInput');
+    const articleInput = document.getElementById('articleContent');
     const formatBtn = document.getElementById('formatBtn');
-    const loading = document.getElementById('formatLoading');
+    const loading = formatBtn.querySelector('.loading');
     const preview = document.getElementById('formattedPreview');
+    const useAiFormat = document.getElementById('useAiFormat');
     
     if (!articleInput || !articleInput.value.trim()) {
         showToast('输入错误', '请输入要格式化的文章内容', 'warning');
@@ -142,14 +143,14 @@ async function formatArticle() {
     setLoadingState(formatBtn, loading, true);
     
     try {
-        const response = await fetch('/api/format', {
+        const response = await fetch('/api/format-article', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 content: articleInput.value,
-                format_type: 'wechat'
+                use_ai: useAiFormat ? useAiFormat.checked : false
             })
         });
         
@@ -160,7 +161,8 @@ async function formatArticle() {
                 preview.textContent = data.formatted_content;
                 preview.classList.add('fade-in');
             }
-            showToast('格式化成功', '文章已成功格式化为微信公众号格式', 'success');
+            const method = data.method || '规则排版';
+            showToast('格式化成功', `文章已成功使用${method}格式化为Markdown`, 'success');
         } else {
             throw new Error(data.error || '格式化失败');
         }
@@ -174,7 +176,7 @@ async function formatArticle() {
 
 // 生成海报
 async function generatePoster() {
-    const articleInput = document.getElementById('articleInput');
+    const articleInput = document.getElementById('articleContent');
     const posterType = document.getElementById('posterType');
     const generateBtn = document.getElementById('generatePosterBtn');
     const loading = document.getElementById('posterLoading');
@@ -275,9 +277,15 @@ function downloadPoster() {
 function clearAll() {
     if (confirm('确定要清空所有内容吗？此操作不可撤销。')) {
         // 清空输入
-        const articleInput = document.getElementById('articleInput');
+        const articleInput = document.getElementById('articleContent');
         if (articleInput) {
             articleInput.value = '';
+        }
+        
+        // 重置AI排版选项
+        const useAiFormat = document.getElementById('useAiFormat');
+        if (useAiFormat) {
+            useAiFormat.checked = false;
         }
         
         // 清空预览
