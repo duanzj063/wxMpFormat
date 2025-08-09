@@ -1,0 +1,100 @@
+[project]
+name = "wxMpFormat"
+version = "1.0.0"
+description = "微信文章格式化与海报生成系统"
+authors = [
+    {name = "Developer", email = "developer@example.com"}
+]
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "flask>=2.0.0",
+    "requests>=2.25.0",
+    "Pillow>=8.0.0",
+    "weasyprint>=54.0",
+    "markdown>=3.3.0",
+    "python-dotenv>=0.19.0",
+    "werkzeug>=2.0.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0.0",
+    "pytest-cov>=2.10.0",
+    "black>=21.0.0",
+    "flake8>=3.8.0",
+    "mypy>=0.800"
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+include = [
+    "app.py",
+    "templates/**",
+    "static/**",
+    "prompt/**",
+    "requirements.txt",
+    "README.md"
+]
+exclude = [
+    "*.pyc",
+    "__pycache__",
+    ".env",
+    "logs/**",
+    "static/uploads/**",
+    "static/posters/**"
+]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+include = '\.pyi?$'
+extend-exclude = '''
+(
+  /(
+      \.eggs
+    | \.git
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | _build
+    | buck-out
+    | build
+    | dist
+  )/
+)
+'''
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q --strict-markers"
+testpaths = [
+    "tests",
+]
+
+[project.urls]
+Homepage = "https://github.com/username/wxMpFormat"
+Repository = "https://github.com/username/wxMpFormat.git"
+Issues = "https://github.com/username/wxMpFormat/issues"

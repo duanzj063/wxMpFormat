@@ -1,17 +1,66 @@
-# 公众号文章与封面生成器
+# 微信文章格式化与海报生成系统
 
-这是一个基于Python的程序，可以根据输入的Markdown文章自动生成适合微信公众号发布的文章格式，并创建相应的公众号封面图片。
+这是一个基于Flask的Web应用程序，可以将普通文章格式化为微信公众号格式，并使用AI技术生成精美的海报封面。
 
 ## 功能特点
 
-- 将Markdown文章转换为公众号格式
-- 根据文章标题生成公众号封面HTML
-- 将HTML封面转换为PNG图片
-- 保存生成的公众号文章和封面图片到本地
+✅ **文章格式化**
+- 将普通文章转换为微信公众号格式
+- 智能识别标题和段落结构
+- 支持Markdown格式输出
+- 实时预览和一键复制
 
-## 前置准备
+✅ **AI海报生成**
+- 集成AI服务生成智能海报
+- 支持小红书和公众号两种格式
+- 多种视觉风格自动匹配
+- HTML格式输出，支持下载
 
-### 1. 安装依赖
+✅ **Web界面**
+- 现代化响应式设计
+- 友好的用户交互体验
+- 实时状态反馈
+- 移动端适配
+
+## 环境管理
+
+本项目推荐使用 [uv](https://github.com/astral-sh/uv) 进行Python环境和依赖管理。
+
+### 1. 安装uv
+
+```bash
+# 使用pip安装
+pip install uv
+
+# 或者使用官方安装脚本
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+### 2. 快速启动
+
+**Windows用户:**
+```bash
+# 双击运行
+run.bat
+
+# 或者命令行运行
+uv sync
+uv run python app.py
+```
+
+**Linux/macOS用户:**
+```bash
+# 使用Python脚本
+python run.py
+
+# 或者直接使用uv
+uv sync
+uv run python app.py
+```
+
+### 3. 传统方式安装依赖
+
+如果不使用uv，也可以使用传统的pip方式：
 
 ```bash
 pip install -r requirements.txt
