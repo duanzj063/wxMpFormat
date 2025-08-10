@@ -29,32 +29,7 @@ config = {
     'ai_model': os.getenv('MODEL_NAME', 'gpt-3.5-turbo')
 }
 
-def normalize_openai_url(url):
-    """标准化OpenAI API URL格式"""
-    if not url:
-        return 'https://api.openai.com/v1/chat/completions'
-    
-    # 移除末尾的斜杠
-    url = url.rstrip('/')
-    
-    # 如果URL已经包含完整路径，直接返回
-    if url.endswith('/chat/completions'):
-        return url
-    
-    # 如果URL只包含到v1，添加chat/completions
-    if url.endswith('/v1'):
-        return f"{url}/chat/completions"
-    
-    # 如果URL是基础地址，添加完整路径
-    if not '/v1' in url:
-        return f"{url}/v1/chat/completions"
-    
-    # 其他情况，尝试智能拼接
-    if '/v1/' in url and not url.endswith('/chat/completions'):
-        base_url = url.split('/v1/')[0]
-        return f"{base_url}/v1/chat/completions"
-    
-    return url
+
 
 @app.route('/')
 def index():
@@ -207,18 +182,25 @@ def test_ai():
         test_data = {
             'model': config['ai_model'],
             'messages': [{'role': 'user', 'content': '你好，这是一个测试消息'}],
-            'max_tokens': 50
+            'max_tokens': 50,
+            'stream': False
         }
         
-        # 标准化API URL
-        api_url = normalize_openai_url(config['ai_service_url'])
+        # 直接使用配置的API URL
+        api_url = config['ai_service_url']
         
         response = requests.post(api_url, headers=headers, json=test_data, timeout=10)
         
         if response.status_code == 200:
             return jsonify({'success': True, 'message': 'AI服务连接正常'})
         else:
-            return jsonify({'error': f'AI服务返回错误: {response.status_code}'}), 500
+            error_detail = ''
+            try:
+                error_response = response.json()
+                error_detail = f": {error_response}"
+            except:
+                error_detail = f": {response.text[:200]}"
+            return jsonify({'error': f'AI服务返回错误 {response.status_code}{error_detail}'}), 500
     
     except Exception as e:
         return jsonify({'error': f'连接失败: {str(e)}'}), 500
@@ -295,11 +277,12 @@ def format_text_with_ai(text):
                 }
             ],
             'temperature': 0.3,
-            'max_tokens': 2000
+            'max_tokens': 2000,
+            'stream': False
         }
         
-        # 标准化API URL
-        api_url = normalize_openai_url(config['ai_service_url'])
+        # 直接使用配置的API URL
+        api_url = config['ai_service_url']
         print(f"发送请求到: {api_url}")
         
         response = requests.post(
@@ -365,8 +348,8 @@ def generate_poster_html(title, content, poster_type):
             'temperature': 0.7
         }
         
-        # 标准化API URL
-        api_url = normalize_openai_url(config['ai_service_url'])
+        # 直接使用配置的API URL
+        api_url = config['ai_service_url']
         
         response = requests.post(api_url, headers=headers, json=data, timeout=30)
         
