@@ -361,16 +361,28 @@ def generate_poster_html(content, poster_type):
         if not config['ai_api_key']:
             return None
         
-        # 读取完整的提示词模板作为system prompt
+        # 读取完整的提示词模板
         system_prompt = load_prompt_template()
         
-        # 构建user prompt，只包含文章内容和海报类型
-        user_prompt = f"""请根据以下用户输入生成对应的HTML封面代码：
+        # 构建user prompt，将提示词模板和用户输入结合
+        user_prompt = f"""请根据以下完整的提示词模板和用户输入，生成一个完整的HTML页面：
 
-封面类型：{poster_type}
-文章内容：{content}
+## 完整提示词模板：
+{system_prompt}
 
-请从文章内容中自动提取或生成一个合适的标题，然后严格按照提示词中的规则进行分析和设计，生成完整的HTML代码。"""
+## 用户输入：
+- 封面类型：{poster_type}
+- 文章内容：{content}
+
+请严格按照提示词模板中的规则进行分析和设计，生成一个完整的HTML页面代码。HTML页面应该包含所有必要的CSS样式和JavaScript代码，可以直接在浏览器中运行。
+
+要求：
+1. 从文章内容中自动提取或生成一个合适的标题
+2. 根据封面类型（小红书/公众号）选择合适的框架
+3. 根据内容特点自动匹配最适合的视觉风格
+4. 生成完整的HTML+CSS+JS代码
+5. 包含下载功能
+6. 确保代码可直接在浏览器中运行"""
         
         headers = {
             'Authorization': f'Bearer {config["ai_api_key"]}',
@@ -380,20 +392,19 @@ def generate_poster_html(content, poster_type):
         data = {
             'model': config['ai_model'],
             'messages': [
-                {'role': 'system', 'content': system_prompt},
+                {'role': 'system', 'content': '你是一位专业的网页和营销视觉设计师，擅长根据提示词生成完整的HTML页面。'},
                 {'role': 'user', 'content': user_prompt}
             ],
-            'max_tokens': 8000,
+            'max_tokens': 16000,
             'temperature': 0.7
         }
         
         # 直接使用配置的API URL
         api_url = config['ai_service_url']
         print(f"发送海报生成请求到: {api_url}")
-        print(f"System prompt长度: {len(system_prompt)}")
         print(f"User prompt长度: {len(user_prompt)}")
         
-        response = requests.post(api_url, headers=headers, json=data, timeout=360)
+        response = requests.post(api_url, headers=headers, json=data, timeout=600)
         
         print(f"海报生成API响应状态码: {response.status_code}")
         
@@ -403,6 +414,22 @@ def generate_poster_html(content, poster_type):
             if 'choices' in result and len(result['choices']) > 0:
                 html_content = result['choices'][0]['message']['content'].strip()
                 print(f"生成HTML内容长度: {len(html_content)}")
+                
+                # 确保返回的是完整的HTML内容
+                if not html_content.startswith('<!DOCTYPE html>'):
+                    # 如果不是完整的HTML，包装一下
+                    html_content = f"""<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>海报</title>
+    {html_content}
+</head>
+<body>
+</body>
+</html>"""
+                
                 return html_content
             else:
                 print("错误: 海报生成API响应中没有choices字段或choices为空")
