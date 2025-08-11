@@ -164,17 +164,13 @@
             </h5>
             <div class="row mb-3">
                 <div class="col-md-6">
-                    <label class="form-label">海报标题</label>
-                    <input type="text" id="posterTitle" class="form-control" placeholder="请输入海报标题...">
-                </div>
-                <div class="col-md-3">
                     <label class="form-label">海报类型</label>
                     <select id="posterType" class="form-select">
                         <option value="小红书">小红书 (3:4)</option>
                         <option value="公众号">公众号 (3.35:1)</option>
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-6">
                     <label class="form-label">操作</label>
                     <div>
                         <button id="generatePosterBtn" class="btn btn-success w-100">
@@ -345,14 +341,8 @@
         }
 
         async function generatePoster() {
-            const title = document.getElementById('posterTitle').value.trim();
             const content = document.getElementById('articleContent').value.trim();
             const posterType = document.getElementById('posterType').value;
-            
-            if (!title) {
-                showToast('请输入海报标题', 'warning');
-                return;
-            }
             
             if (!content) {
                 showToast('请输入文章内容', 'warning');
@@ -378,7 +368,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ title, content, poster_type: posterType })
+                    body: JSON.stringify({ content, poster_type: posterType })
                 });
 
                 const result = await response.json();

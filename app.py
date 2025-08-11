@@ -116,15 +116,14 @@ def generate_poster():
     """生成海报"""
     try:
         data = request.get_json()
-        title = data.get('title', '')
         content = data.get('content', '')
         poster_type = data.get('poster_type', '小红书')  # 小红书 或 公众号
         
-        if not title or not content:
-            return jsonify({'error': '标题和内容不能为空'}), 400
+        if not content:
+            return jsonify({'error': '内容不能为空'}), 400
         
         # 调用AI生成海报HTML
-        poster_html = generate_poster_html(title, content, poster_type)
+        poster_html = generate_poster_html(content, poster_type)
         
         if not poster_html:
             return jsonify({'error': 'AI服务调用失败，请检查配置'}), 500
@@ -356,7 +355,7 @@ def format_text_with_ai(text):
         traceback.print_exc()
         return None
 
-def generate_poster_html(title, content, poster_type):
+def generate_poster_html(content, poster_type):
     """调用AI生成海报HTML"""
     try:
         if not config['ai_api_key']:
@@ -365,14 +364,13 @@ def generate_poster_html(title, content, poster_type):
         # 读取完整的提示词模板作为system prompt
         system_prompt = load_prompt_template()
         
-        # 构建user prompt，包含具体的标题和内容
+        # 构建user prompt，只包含文章内容和海报类型
         user_prompt = f"""请根据以下用户输入生成对应的HTML封面代码：
 
 封面类型：{poster_type}
-标题内容：{title}
 文章内容：{content}
 
-请严格按照提示词中的规则进行分析和设计，生成完整的HTML代码。"""
+请从文章内容中自动提取或生成一个合适的标题，然后严格按照提示词中的规则进行分析和设计，生成完整的HTML代码。"""
         
         headers = {
             'Authorization': f'Bearer {config["ai_api_key"]}',
@@ -427,13 +425,14 @@ def load_prompt_template():
     except:
         # 如果文件不存在，返回简化版提示词
         return """
-你是一位优秀的网页和营销视觉设计师。请根据用户提供的标题内容，生成对应类型的HTML封面代码。
+你是一位优秀的网页和营销视觉设计师。请根据用户提供的文章内容，生成对应类型的HTML封面代码。
 
 要求：
-1. 生成完整的HTML代码，包含CSS样式
-2. 确保代码可以直接在浏览器中运行
-3. 根据内容类型自动选择合适的视觉风格
-4. 包含下载功能
+1. 从文章内容中自动提取或生成合适的标题
+2. 生成完整的HTML代码，包含CSS样式
+3. 确保代码可以直接在浏览器中运行
+4. 根据内容类型自动选择合适的视觉风格
+5. 包含下载功能
 """
 
 if __name__ == '__main__':

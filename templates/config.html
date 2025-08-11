@@ -340,13 +340,13 @@
                 const config = await configResponse.json();
                 
                 // 填充表单 - 优先使用当前配置，如果为空则使用默认配置
-                document.getElementById('aiServiceUrl').value = config.ai_service_url || defaults.ai_service_url || '';
-                document.getElementById('aiModel').value = config.ai_model || defaults.ai_model || 'gpt-3.5-turbo';
+                document.getElementById('aiServiceUrl').value = config.ai_service_url || defaults.ai_service_url || 'http://27.159.93.56:8197/v1/chat/completions';
+                document.getElementById('aiModel').value = config.ai_model || defaults.ai_model || 'Qwen3-Coder-30B-A3B-Instruct-FP8';
                 
                 // API密钥特殊处理（显示为星号）
                 const hasApiKey = (config.ai_api_key && config.ai_api_key !== '' && config.ai_api_key !== '*'.repeat(20)) || defaults.has_api_key;
                 if (hasApiKey) {
-                    document.getElementById('aiApiKey').placeholder = '已配置 (点击眼睛图标查看)';
+                    document.getElementById('aiApiKey').placeholder = '已配置 (使用环境变量) (点击眼睛图标查看)';
                 } else {
                     document.getElementById('aiApiKey').placeholder = '请输入API密钥';
                 }
@@ -355,9 +355,9 @@
             } catch (error) {
                 console.error('加载配置失败:', error);
                 showToast('加载配置失败', 'error');
-                // 如果加载失败，使用基本默认值
-                document.getElementById('aiServiceUrl').value = 'https://api.openai.com/v1/chat/completions';
-                document.getElementById('aiModel').value = 'gpt-3.5-turbo';
+                // 如果加载失败，使用环境变量中的默认值
+                document.getElementById('aiServiceUrl').value = 'http://27.159.93.56:8197/v1/chat/completions';
+                document.getElementById('aiModel').value = 'Qwen3-Coder-30B-A3B-Instruct-FP8';
             }
         }
 
@@ -489,11 +489,11 @@
                     showToast('配置已重置为默认值', 'info');
                 } catch (error) {
                     console.error('重置配置失败:', error);
-                    // 如果获取默认配置失败，使用基本默认值
-                    document.getElementById('aiServiceUrl').value = 'https://api.openai.com/v1/chat/completions';
+                    // 如果获取默认配置失败，使用环境变量中的默认值
+                    document.getElementById('aiServiceUrl').value = 'http://27.159.93.56:8197/v1/chat/completions';
                     document.getElementById('aiApiKey').value = '';
                     document.getElementById('aiApiKey').placeholder = '请输入API密钥';
-                    document.getElementById('aiModel').value = 'gpt-3.5-turbo';
+                    document.getElementById('aiModel').value = 'Qwen3-Coder-30B-A3B-Instruct-FP8';
                     updateConnectionStatus(false);
                     showToast('配置已重置', 'info');
                 }
