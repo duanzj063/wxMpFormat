@@ -22,9 +22,36 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs('static/posters', exist_ok=True)
 
+def normalize_api_url(url):
+    """规范化API URL，自动补全缺失的路径"""
+    if not url:
+        return url
+    
+    url = url.strip()
+    
+    # 移除末尾的斜杠
+    url = url.rstrip('/')
+    
+    # OpenAI格式自动补全
+    if 'openai.com' in url:
+        if not url.endswith('/chat/completions'):
+            if '/v1/' in url:
+                url = url.replace('/v1/', '/v1/chat/completions')
+            else:
+                url = url + '/v1/chat/completions'
+    # 智谱AI格式自动补全
+    elif 'bigmodel.cn' in url:
+        if not url.endswith('/chat/completions'):
+            if '/v4/' in url:
+                url = url.replace('/v4/', '/v4/chat/completions')
+            else:
+                url = url + '/api/paas/v4/chat/completions'
+    
+    return url
+
 # 全局配置
 config = {
-    'ai_service_url': os.getenv('API_BASE_URL', 'https://api.openai.com/v1/chat/completions'),
+    'ai_service_url': normalize_api_url(os.getenv('API_BASE_URL', 'https://api.openai.com/v1/chat/completions')),
     'ai_api_key': os.getenv('API_KEY', ''),
     'ai_model': os.getenv('MODEL_NAME', 'gpt-3.5-turbo')
 }
