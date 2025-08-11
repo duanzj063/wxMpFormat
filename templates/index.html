@@ -304,7 +304,7 @@
             const content = document.getElementById('articleContent').value.trim();
             
             if (!content) {
-                showToast('请先输入文章内容', 'warning');
+                showToast('请先输入文章内容', 'warning');使用AI智能排版
                 return;
             }
 
@@ -315,12 +315,16 @@
                 btn.disabled = true;
                 loading.classList.add('show');
 
+                const useAiFormat = document.getElementById('useAiFormat').checked;
                 const response = await fetch('/api/format-article', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ content })
+                    body: JSON.stringify({
+                        content,
+                        useAiFormat: useAiFormat
+                    })
                 });
 
                 const result = await response.json();

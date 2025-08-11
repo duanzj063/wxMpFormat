@@ -32,20 +32,24 @@ def normalize_api_url(url):
     # 移除末尾的斜杠
     url = url.rstrip('/')
     
+    # 如果已经是完整的API路径，直接返回
+    if url.endswith('/chat/completions'):
+        return url
+    
     # OpenAI格式自动补全
     if 'openai.com' in url:
-        if not url.endswith('/chat/completions'):
-            if '/v1/' in url:
-                url = url.replace('/v1/', '/v1/chat/completions')
-            else:
-                url = url + '/v1/chat/completions'
+        if '/v1/' in url:
+            url = url.replace('/v1/', '/v1/chat/completions')
+        else:
+            url = url + '/v1/chat/completions'
     # 智谱AI格式自动补全
     elif 'bigmodel.cn' in url:
-        if not url.endswith('/chat/completions'):
-            if '/v4/' in url:
-                url = url.replace('/v4/', '/v4/chat/completions')
-            else:
-                url = url + '/api/paas/v4/chat/completions'
+        if '/api/paas/v4' in url:
+            url = url.replace('/api/paas/v4', '/api/paas/v4/chat/completions')
+        elif '/v4/' in url:
+            url = url.replace('/v4/', '/v4/chat/completions')
+        else:
+            url = url + '/api/paas/v4/chat/completions'
     
     return url
 
@@ -74,26 +78,37 @@ def format_article():
     try:
         data = request.get_json()
         content = data.get('content', '')
-        use_ai = data.get('use_ai', False)  # 是否使用AI排版
+        use_ai = data.get('useAiFormat', False)  # 修复：使用与前端一致的参数名
         
         if not content:
             return jsonify({'error': '内容不能为空'}), 400
         
+        print(f"格式化文章 - 内容长度: {len(content)}, 使用AI: {use_ai}")
+        
         # 根据选择使用不同的格式化方式
         if use_ai:
+            print("开始AI格式化...")
             formatted_content = format_text_with_ai(content)
             if not formatted_content:
                 return jsonify({'error': 'AI服务调用失败，请检查配置'}), 500
+            method = 'AI排版'
         else:
+            print("开始规则格式化...")
             formatted_content = format_text_to_markdown(content)
+            method = '规则排版'
+        
+        print(f"格式化完成 - 方法: {method}, 内容长度: {len(formatted_content)}")
         
         return jsonify({
             'success': True,
             'formatted_content': formatted_content,
-            'method': 'AI排版' if use_ai else '规则排版'
+            'method': method
         })
     
     except Exception as e:
+        print(f"格式化错误: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/generate-poster', methods=['POST'])
@@ -347,18 +362,17 @@ def generate_poster_html(title, content, poster_type):
         if not config['ai_api_key']:
             return None
         
-        # 读取提示词模板
-        prompt_template = load_prompt_template()
+        # 读取完整的提示词模板作为system prompt
+        system_prompt = load_prompt_template()
         
-        # 构建提示词
-        prompt = f"""{prompt_template}
+        # 构建user prompt，包含具体的标题和内容
+        user_prompt = f"""请根据以下用户输入生成对应的HTML封面代码：
 
-用户输入：
 封面类型：{poster_type}
 标题内容：{title}
+文章内容：{content}
 
-请根据标题内容自动匹配最适合的视觉风格，并生成完整的HTML封面代码。
-"""
+请严格按照提示词中的规则进行分析和设计，生成完整的HTML代码。"""
         
         headers = {
             'Authorization': f'Bearer {config["ai_api_key"]}',
@@ -368,27 +382,41 @@ def generate_poster_html(title, content, poster_type):
         data = {
             'model': config['ai_model'],
             'messages': [
-                {'role': 'system', 'content': '你是一位优秀的网页和营销视觉设计师，专门生成HTML封面代码。'},
-                {'role': 'user', 'content': prompt}
+                {'role': 'system', 'content': system_prompt},
+                {'role': 'user', 'content': user_prompt}
             ],
-            'max_tokens': 4000,
+            'max_tokens': 8000,
             'temperature': 0.7
         }
         
         # 直接使用配置的API URL
         api_url = config['ai_service_url']
+        print(f"发送海报生成请求到: {api_url}")
+        print(f"System prompt长度: {len(system_prompt)}")
+        print(f"User prompt长度: {len(user_prompt)}")
         
-        response = requests.post(api_url, headers=headers, json=data, timeout=30)
+        response = requests.post(api_url, headers=headers, json=data, timeout=360)
+        
+        print(f"海报生成API响应状态码: {response.status_code}")
         
         if response.status_code == 200:
             result = response.json()
-            return result['choices'][0]['message']['content']
+            print(f"海报生成API响应: {result}")
+            if 'choices' in result and len(result['choices']) > 0:
+                html_content = result['choices'][0]['message']['content'].strip()
+                print(f"生成HTML内容长度: {len(html_content)}")
+                return html_content
+            else:
+                print("错误: 海报生成API响应中没有choices字段或choices为空")
+                return None
         else:
-            print(f'AI API错误: {response.status_code}, {response.text}')
+            print(f'海报生成API错误: {response.status_code}, {response.text}')
             return None
     
     except Exception as e:
         print(f'生成海报HTML失败: {str(e)}')
+        import traceback
+        traceback.print_exc()
         return None
 
 def load_prompt_template():
